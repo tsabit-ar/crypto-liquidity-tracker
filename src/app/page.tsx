@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import QuadrantPlot from '@/components/charts/QuadrantPlot';
 import { 
   AlertTriangle, 
   ShieldAlert, 
@@ -179,12 +180,19 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Matriks Likuiditas Sektoral Live */}
+      {/* Matriks Likuiditas Sektoral Live + Grafik Kuadran */}
       <section className="mt-8">
         <div className="flex items-center gap-2 mb-4">
           <Layers className="w-5 h-5 text-indigo-400" />
           <h2 className="text-lg font-semibold">Matriks Likuiditas Sektoral (Live Database)</h2>
         </div>
+
+        {/* Visualisasi Scatter Plot Kuadran */}
+        {sectors.length > 0 && (
+          <div className="mb-6">
+            <QuadrantPlot sectors={sectors} />
+          </div>
+        )}
 
         <div className="overflow-x-auto bg-slate-900/40 border border-slate-800 rounded-xl">
           <table className="w-full text-left text-sm">

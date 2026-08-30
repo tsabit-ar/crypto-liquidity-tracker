@@ -4,7 +4,6 @@ on:
   schedule:
     # Berjalan otomatis setiap 2 jam sekali (UTC)
     - cron: '0 */2 * * *'
-  # Memungkinkan eksekusi manual via tombol 'Run workflow' di GitHub
   workflow_dispatch:
 
 jobs:
@@ -18,7 +17,7 @@ jobs:
       - name: Setup Node.js Environment
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22 # <-- Ubah dari 20 ke 22
           cache: 'npm'
 
       - name: Install Dependencies
