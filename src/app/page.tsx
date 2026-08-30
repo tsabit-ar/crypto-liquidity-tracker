@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import QuadrantPlot from '@/components/charts/QuadrantPlot';
 import { 
@@ -10,7 +10,8 @@ import {
   Zap, 
   Compass, 
   Layers,
-  RefreshCw
+  RefreshCw,
+  Radio
 } from 'lucide-react';
 import { AiBriefing, ActionableSetup, SectorMetric } from '@/types/dashboard';
 
@@ -20,8 +21,9 @@ export default function DashboardPage() {
   const [setups, setSetups] = useState<ActionableSetup[]>([]);
   const [sectors, setSectors] = useState<SectorMetric[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastSyncTime, setLastSyncTime] = useState<string>('-');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // 1. Fetch AI Briefing Terkini
@@ -40,6 +42,7 @@ export default function DashboardPage() {
           executiveSummary: briefingData.executive_summary,
           anomalyObservations: briefingData.anomaly_observations || []
         });
+        setLastSyncTime(new Date(briefingData.created_at).toLocaleTimeString());
       }
 
       // 2. Fetch Active Setups Terkini
@@ -72,7 +75,7 @@ export default function DashboardPage() {
         );
       }
 
-      // 3. Fetch Data Sektor Terkini dari Supabase
+      // 3. Fetch Data Sektor Terkini
       const { data: sectorsData } = await supabase
         .from('sector_metrics_history')
         .select('*, sectors(name)')
@@ -99,11 +102,36 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+
+    // Setup Supabase Realtime Subscription
+    const channel = supabase
+      .channel('realtime_market_updates')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ai_briefings' },
+        () => {
+          console.log('📡 Realtime update terdeteksi: AI Briefing baru masuk.');
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sector_metrics_history' },
+        () => {
+          console.log('📡 Realtime update terdeteksi: Metrik Sektor baru masuk.');
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans">
@@ -121,13 +149,18 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-2 rounded-lg font-mono">
+            <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
+            Live Realtime (Last sync: {lastSyncTime})
+          </div>
+
           <button
             onClick={fetchData}
             disabled={loading}
             className="flex items-center gap-1.5 text-xs bg-slate-900 border border-slate-800 hover:bg-slate-800 px-3 py-2 rounded-lg text-slate-300 transition"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Data
+            Refresh
           </button>
 
           <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 px-4 py-2 rounded-lg">
@@ -184,10 +217,9 @@ export default function DashboardPage() {
       <section className="mt-8">
         <div className="flex items-center gap-2 mb-4">
           <Layers className="w-5 h-5 text-indigo-400" />
-          <h2 className="text-lg font-semibold">Matriks Likuiditas Sektoral (Live Database)</h2>
+          <h2 className="text-lg font-semibold">Matriks Likuiditas Sektoral (Dynamic Rotation)</h2>
         </div>
 
-        {/* Visualisasi Scatter Plot Kuadran */}
         {sectors.length > 0 && (
           <div className="mb-6">
             <QuadrantPlot sectors={sectors} />
