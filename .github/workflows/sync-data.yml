@@ -1,0 +1,33 @@
+name: Automated Crypto Liquidity Sync
+
+on:
+  schedule:
+    # Berjalan otomatis setiap 2 jam sekali (UTC)
+    - cron: '0 */2 * * *'
+  # Memungkinkan eksekusi manual via tombol 'Run workflow' di GitHub
+  workflow_dispatch:
+
+jobs:
+  sync-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Execute Hybrid Ingestion & AI Pipeline
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: npx tsx scripts/syncData.ts
